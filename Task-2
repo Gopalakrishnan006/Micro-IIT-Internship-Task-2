@@ -1,0 +1,88 @@
+from flask import Flask, render_template_string, request, jsonify
+import random
+import string
+
+app = Flask(__name__)
+
+def generate_password(length, use_upper, use_lower, use_digits, use_special):
+    characters = ""
+    if use_upper:
+        characters += string.ascii_uppercase
+    if use_lower:
+        characters += string.ascii_lowercase
+    if use_digits:
+        characters += string.digits
+    if use_special:
+        characters += string.punctuation
+
+    if not characters:
+        return "Please select at least one character type!"
+    
+    return "".join(random.choice(characters) for _ in range(length))
+
+@app.route('/')
+def home():
+    return render_template_string('''
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cloud Password Generator</title>
+        <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+            input, button, label { font-size: 1.2em; margin: 5px; }
+        </style>
+        <script>
+            async function generatePassword() {
+                let length = document.getElementById("length").value;
+                let useUpper = document.getElementById("upper").checked;
+                let useLower = document.getElementById("lower").checked;
+                let useDigits = document.getElementById("digits").checked;
+                let useSpecial = document.getElementById("special").checked;
+
+                let response = await fetch('/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        length: length, 
+                        use_upper: useUpper, 
+                        use_lower: useLower, 
+                        use_digits: useDigits, 
+                        use_special: useSpecial 
+                    })
+                });
+
+                let data = await response.json();
+                document.getElementById("password").innerText = data.password;
+            }
+        </script>
+    </head>
+    <body>
+        <h1>Cloud Password Generator</h1>
+        <label>Password Length: <input type="number" id="length" min="4" max="50" value="12"></label><br>
+        <label><input type="checkbox" id="upper" checked> Uppercase Letters</label><br>
+        <label><input type="checkbox" id="lower" checked> Lowercase Letters</label><br>
+        <label><input type="checkbox" id="digits" checked> Numbers</label><br>
+        <label><input type="checkbox" id="special" checked> Special Characters</label><br>
+        <button onclick="generatePassword()">Generate Password</button>
+        <h3>Generated Password:</h3>
+        <p id="password"></p>
+    </body>
+    </html>
+    ''')
+
+@app.route('/generate', methods=['POST'])
+def generate():
+    data = request.json
+    password = generate_password(
+        int(data.get('length', 12)),
+        data.get('use_upper', True),
+        data.get('use_lower', True),
+        data.get('use_digits', True),
+        data.get('use_special', True)
+    )
+    return jsonify({"password": password})
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=5000)
